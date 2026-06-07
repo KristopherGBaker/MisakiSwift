@@ -38,8 +38,6 @@ import MLXUtilsLibrary
 public final class JapaneseG2P {
     public init() {}
 
-    private static let sutegana: Set<Character> = ["ゃ", "ゅ", "ょ", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"]
-
     /// Particles whose spoken reading differs from the kana, keyed by the lone
     /// token surface: は→わ, へ→え. (を→お is already handled by the kana table.)
     private static let particleReading: [String: String] = ["は": "わ", "へ": "え"]
@@ -133,55 +131,12 @@ public final class JapaneseG2P {
         return mutable as String
     }
 
-    // MARK: - Hiragana → IPA (port of cutlet `_get_single_mapping`)
+    // MARK: - Hiragana → IPA
 
+    /// Hiragana → Kokoro-vocab IPA. Delegates to the shared `KanaToIPA` (a port of
+    /// cutlet's `_get_single_mapping`), reused by the OpenJTalk-backed deriver.
     func kanaToIPA(_ hira: String) -> String {
-        let chars = Array(hira)
-        var out = ""
-        for i in 0..<chars.count {
-            let kk = chars[i]
-            let pk: Character? = i > 0 ? chars[i - 1] : nil
-            let nk: Character? = i < chars.count - 1 ? chars[i + 1] : nil
-
-            // Digraph with the previous kana → emitted now (was deferred last step).
-            if let pk, let mapped = KanaIPA.digraph[String([pk, kk])] { out += mapped; continue }
-            // Digraph with the next kana → defer; emit on the next iteration.
-            if let nk, KanaIPA.digraph[String([kk, nk])] != nil { continue }
-            // A base kana followed by a sutegana that is not a known digraph:
-            // drop the base's vowel and append the small-kana vowel.
-            if let nk, Self.sutegana.contains(nk), kk != "っ",
-               let base = KanaIPA.single[kk], let small = KanaIPA.single[nk] {
-                out += String(base.dropLast()) + small
-                continue
-            }
-            if Self.sutegana.contains(kk) { continue }
-            if kk == "ー" { out += "ː"; continue }
-            if kk == "っ" { out += "ʔ"; continue }
-            if kk == "ん" { out += moraicNasal(next: nk, at: i, in: chars); continue }
-            if let value = KanaIPA.single[kk] { out += value }
-        }
-        return out
-    }
-
-    /// Context-sensitive realization of ん based on the following sound.
-    private func moraicNasal(next nk: Character?, at index: Int, in chars: [Character]) -> String {
-        guard let nk, let following = mapping(of: nk, at: index, in: chars), let first = following.first else {
-            return "ɴ"
-        }
-        if "mpb".contains(first) { return "m" }
-        if "kɡ".contains(first) { return "ŋ" }
-        if following.hasPrefix("ɲ") || following.hasPrefix("ʨ") || following.hasPrefix("ʥ") { return "ɲ" }
-        if "ntdɾz".contains(first) { return "n" }
-        return "ɴ"
-    }
-
-    /// Best-effort IPA of the kana after ん (honouring a possible digraph) so its
-    /// leading consonant can drive nasal assimilation.
-    private func mapping(of nk: Character, at index: Int, in chars: [Character]) -> String? {
-        if index + 2 < chars.count, let digraph = KanaIPA.digraph[String([nk, chars[index + 2]])] {
-            return digraph
-        }
-        return KanaIPA.single[nk]
+        KanaToIPA.ipa(forHiragana: hira)
     }
 
     // MARK: - Ranges
