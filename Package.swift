@@ -20,9 +20,63 @@ let package = Package(
     .package(url: "https://github.com/mlalma/MLXUtilsLibrary.git", exact: "0.0.6")
   ],
   targets: [
+    // Vendored Open JTalk text-processing frontend (modified-BSD, NOT GPL). Exposes
+    // a thin C API (`copenjtalk.h`) over the morphological + accent analysis pipeline;
+    // synthesis (hts_engine) is intentionally omitted — Kokoro produces the audio.
+    .target(
+      name: "COpenJTalk",
+      exclude: [
+        "openjtalk/COPYING",
+        "openjtalk/mecab/COPYING",
+        // CLI dictionary-compiler tool (defines its own `main`); never called at
+        // runtime — Aoede ships the prebuilt UTF-8 dictionary.
+        "openjtalk/mecab/mecab-dict-index.cpp"
+      ],
+      cSettings: [
+        .headerSearchPath("openjtalk/jpcommon"),
+        .headerSearchPath("openjtalk/mecab"),
+        .headerSearchPath("openjtalk/mecab2njd"),
+        .headerSearchPath("openjtalk/njd"),
+        .headerSearchPath("openjtalk/njd2jpcommon"),
+        .headerSearchPath("openjtalk/njd_set_accent_phrase"),
+        .headerSearchPath("openjtalk/njd_set_accent_type"),
+        .headerSearchPath("openjtalk/njd_set_digit"),
+        .headerSearchPath("openjtalk/njd_set_long_vowel"),
+        .headerSearchPath("openjtalk/njd_set_pronunciation"),
+        .headerSearchPath("openjtalk/njd_set_unvoiced_vowel"),
+        .headerSearchPath("openjtalk/text2mecab"),
+        .define("HAVE_CONFIG_H"),
+        .define("DIC_VERSION", to: "102"),
+        .define("MECAB_DEFAULT_RC", to: "\"dummy\""),
+        .define("CHARSET_UTF_8"),
+        .define("MECAB_CHARSET", to: "utf-8"),
+        .define("VERSION", to: "\"1.11\"")
+      ],
+      cxxSettings: [
+        .headerSearchPath("openjtalk/jpcommon"),
+        .headerSearchPath("openjtalk/mecab"),
+        .headerSearchPath("openjtalk/mecab2njd"),
+        .headerSearchPath("openjtalk/njd"),
+        .headerSearchPath("openjtalk/njd2jpcommon"),
+        .headerSearchPath("openjtalk/njd_set_accent_phrase"),
+        .headerSearchPath("openjtalk/njd_set_accent_type"),
+        .headerSearchPath("openjtalk/njd_set_digit"),
+        .headerSearchPath("openjtalk/njd_set_long_vowel"),
+        .headerSearchPath("openjtalk/njd_set_pronunciation"),
+        .headerSearchPath("openjtalk/njd_set_unvoiced_vowel"),
+        .headerSearchPath("openjtalk/text2mecab"),
+        .define("HAVE_CONFIG_H"),
+        .define("DIC_VERSION", to: "102"),
+        .define("MECAB_DEFAULT_RC", to: "\"dummy\""),
+        .define("CHARSET_UTF_8"),
+        .define("MECAB_CHARSET", to: "utf-8"),
+        .define("VERSION", to: "\"1.11\"")
+      ]
+    ),
     .target(
       name: "MisakiSwift",
       dependencies: [
+        "COpenJTalk",
         .product(name: "MLX", package: "mlx-swift"),
         .product(name: "MLXNN", package: "mlx-swift"),
         .product(name: "MLXUtilsLibrary", package: "MLXUtilsLibrary")

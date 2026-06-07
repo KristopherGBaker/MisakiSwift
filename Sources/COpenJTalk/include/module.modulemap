@@ -1,0 +1,4 @@
+module COpenJTalk {
+    header "copenjtalk.h"
+    export *
+}
