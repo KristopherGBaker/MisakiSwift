@@ -74,6 +74,25 @@ final public class EnglishG2P {
     let futureTo = (token.text == "to" || token.text == "To") || (token.text == "TO" && (token.tag == .particle || token.tag == .preposition))
     return TokenContext(futureVowel: vowel, futureTo: futureTo)
   }
+
+  /// Pre-pass that resolves verb *tense* for the tense-heteronyms (read/reread/wound)
+  /// from local context and pins their phonemes via an explicit fine-grained Penn tag.
+  /// Apple's `NLTagger` only emits a coarse `.verb`, so without this "I read it yesterday"
+  /// collapses to the present "I read every day". Runs on the freshly-tokenized sequence
+  /// (1:1 with NLTagger words) so a left-neighbour auxiliary/modal is still adjacent; once
+  /// `phonemes` is set the main resolution loop leaves the token untouched.
+  private func disambiguateTenseHeteronyms(_ tokens: [MToken]) {
+    for (i, token) in tokens.enumerated() {
+      guard token.phonemes == nil, token.`_`.alias == nil,
+            EnglishG2P.tenseHeteronyms.contains(token.text.lowercased()),
+            let forced = EnglishG2P.tenseTag(for: tokens, at: i) else { continue }
+      let out = lexicon.transcribe(token, ctx: TokenContext(), forcedPennTag: forced)
+      if let phonemes = out.0 {
+        token.phonemes = phonemes
+        token.`_`.rating = out.1
+      }
+    }
+  }
   
   func stressWeight(_ phonemes: String?) -> Int {
     let dipthongs = Set("AIOQWYʤʧ")
@@ -403,6 +422,7 @@ final public class EnglishG2P {
     }
 
     var tokens = tokenize(preprocessedText: pre)
+    disambiguateTenseHeteronyms(tokens)
     tokens = foldLeft(tokens)
     
     let words = retokenize(tokens)
