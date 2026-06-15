@@ -15,6 +15,8 @@ import Foundation
 struct OJTWord {
     var surface: String
     var pron: String
+    /// Orthographic katakana reading (キョウ), distinct from the phonetic `pron` (キョー).
+    var read: String
     var pos: String
     var acc: Int
     var moraSize: Int
@@ -50,6 +52,7 @@ final class OJTFrontend {
             out.append(OJTWord(
                 surface: String(cString: word.surface),
                 pron: String(cString: word.pron),
+                read: String(cString: word.read),
                 pos: String(cString: word.pos),
                 acc: Int(word.acc),
                 moraSize: Int(word.mora_size),

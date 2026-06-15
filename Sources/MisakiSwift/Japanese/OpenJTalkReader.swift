@@ -33,10 +33,24 @@ public final class OpenJTalkReader: @unchecked Sendable {
 
     /// Hiragana reading for a token — its OpenJTalk pron (katakana) converted to
     /// hiragana. `nil` when the frontend yields no reading (e.g. punctuation).
+    ///
+    /// This is the *phonetic* reading: long vowels are spoken (今日→きょお, 先生→せんせえ).
+    /// For orthographic furigana (きょう/せんせい) use `orthographicHiraganaReading(for:)`.
     public func hiraganaReading(for text: String) -> String? {
+        reading(for: text, keyPath: \.pron)
+    }
+
+    /// Orthographic hiragana reading for a token — its OpenJTalk `read` (katakana) converted
+    /// to hiragana. Long vowels follow standard spelling (今日→きょう, 先生→せんせい), which is
+    /// what furigana conventionally shows. `nil` when the frontend yields no reading.
+    public func orthographicHiraganaReading(for text: String) -> String? {
+        reading(for: text, keyPath: \.read)
+    }
+
+    private func reading(for text: String, keyPath: KeyPath<OJTWord, String>) -> String? {
         lock.lock()
         defer { lock.unlock() }
-        let katakana = frontend.runFrontend(text).map(\.pron).joined()
+        let katakana = frontend.runFrontend(text).map { $0[keyPath: keyPath] }.joined()
         guard !katakana.isEmpty else { return nil }
         let mutable = NSMutableString(string: katakana)
         CFStringTransform(mutable, nil, kCFStringTransformHiraganaKatakana, true)   // katakana → hiragana
