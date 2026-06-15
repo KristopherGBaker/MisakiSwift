@@ -14,6 +14,8 @@ import Foundation
 /// One NJD word, copied out of the C result into Swift-owned storage.
 struct OJTWord {
     var surface: String
+    /// NJD `orig` — the dictionary base form (食べました→食べる), useful for JMDict lookup.
+    var base: String
     var pron: String
     /// Orthographic katakana reading (キョウ), distinct from the phonetic `pron` (キョー).
     var read: String
@@ -51,6 +53,7 @@ final class OJTFrontend {
             let word = words[index]
             out.append(OJTWord(
                 surface: String(cString: word.surface),
+                base: String(cString: word.base),
                 pron: String(cString: word.pron),
                 read: String(cString: word.read),
                 pos: String(cString: word.pos),

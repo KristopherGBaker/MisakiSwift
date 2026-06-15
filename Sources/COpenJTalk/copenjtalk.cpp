@@ -102,6 +102,7 @@ ojt_result ojt_run_frontend(ojt_frontend *fe, const char *text) {
     for (NJDNode *node = fe->njd.head; node != nullptr; node = node->next) {
         ojt_word w;
         w.surface = dup_cstr(NJDNode_get_string(node));
+        w.base = dup_cstr(NJDNode_get_orig(node));
         w.pron = dup_cstr(NJDNode_get_pron(node));
         w.read = dup_cstr(NJDNode_get_read(node));
         w.pos = dup_cstr(NJDNode_get_pos(node));
@@ -125,6 +126,7 @@ ojt_result ojt_run_frontend(ojt_frontend *fe, const char *text) {
     if (result.words == nullptr) {
         for (auto &w : collected) {
             std::free(const_cast<char *>(w.surface));
+            std::free(const_cast<char *>(w.base));
             std::free(const_cast<char *>(w.pron));
             std::free(const_cast<char *>(w.read));
             std::free(const_cast<char *>(w.pos));
@@ -141,6 +143,7 @@ void ojt_result_free(ojt_result result) {
     }
     for (size_t i = 0; i < result.count; ++i) {
         std::free(const_cast<char *>(result.words[i].surface));
+        std::free(const_cast<char *>(result.words[i].base));
         std::free(const_cast<char *>(result.words[i].pron));
         std::free(const_cast<char *>(result.words[i].read));
         std::free(const_cast<char *>(result.words[i].pos));

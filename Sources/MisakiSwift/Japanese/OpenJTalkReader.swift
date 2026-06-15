@@ -10,14 +10,18 @@
 
 import Foundation
 
-/// One analyzed word from the OpenJTalk frontend: its surface form and orthographic
-/// hiragana reading (empty when the word has no reading, e.g. punctuation).
+/// One analyzed word from the OpenJTalk frontend: its surface form, dictionary base form
+/// (for JMDict-style lookup), and orthographic hiragana reading. Reading is empty when the
+/// word has no reading (e.g. punctuation); `baseForm` falls back to `surface` for words with
+/// no morphological base (numbers, punctuation, names).
 public struct OpenJTalkWord: Sendable, Hashable {
     public let surface: String
+    public let baseForm: String
     public let reading: String
 
-    public init(surface: String, reading: String) {
+    public init(surface: String, baseForm: String, reading: String) {
         self.surface = surface
+        self.baseForm = baseForm
         self.reading = reading
     }
 }
@@ -69,13 +73,16 @@ public final class OpenJTalkReader: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return frontend.runFrontend(line).map { word in
+            // NJD's `orig` is missing for entries with no morphological base — fall back to
+            // the surface so callers always have *something* to look up.
+            let base = word.base.isEmpty ? word.surface : word.base
             let katakana = word.read
             guard !katakana.isEmpty else {
-                return OpenJTalkWord(surface: word.surface, reading: "")
+                return OpenJTalkWord(surface: word.surface, baseForm: base, reading: "")
             }
             let mutable = NSMutableString(string: katakana)
             CFStringTransform(mutable, nil, kCFStringTransformHiraganaKatakana, true)
-            return OpenJTalkWord(surface: word.surface, reading: mutable as String)
+            return OpenJTalkWord(surface: word.surface, baseForm: base, reading: mutable as String)
         }
     }
 

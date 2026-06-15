@@ -28,6 +28,7 @@ typedef struct ojt_frontend ojt_frontend;
 /// they are valid until `ojt_result_free` is called.
 typedef struct {
     const char *surface;     ///< NJDNode `string` — the source surface form.
+    const char *base;        ///< NJDNode `orig` — the dictionary base form (食べました→食べる).
     const char *pron;        ///< Katakana pronunciation (the G2P input; phonetic long vowels).
     const char *read;        ///< Katakana orthographic reading (e.g. キョウ vs pron キョー) — for furigana.
     const char *pos;         ///< Part-of-speech (NJDNode `pos`).
