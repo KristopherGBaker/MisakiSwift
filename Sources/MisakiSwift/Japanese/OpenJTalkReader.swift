@@ -10,6 +10,18 @@
 
 import Foundation
 
+/// One analyzed word from the OpenJTalk frontend: its surface form and orthographic
+/// hiragana reading (empty when the word has no reading, e.g. punctuation).
+public struct OpenJTalkWord: Sendable, Hashable {
+    public let surface: String
+    public let reading: String
+
+    public init(surface: String, reading: String) {
+        self.surface = surface
+        self.reading = reading
+    }
+}
+
 /// Furigana-oriented reading lookup backed by the OpenJTalk frontend. Holds one
 /// dictionary load and serializes calls internally (the frontend mutates per-call
 /// C state), so it's safe to share across threads.
@@ -45,6 +57,26 @@ public final class OpenJTalkReader: @unchecked Sendable {
     /// what furigana conventionally shows. `nil` when the frontend yields no reading.
     public func orthographicHiraganaReading(for text: String) -> String? {
         reading(for: text, keyPath: \.read)
+    }
+
+    /// Tokenize a Japanese line via OpenJTalk's own morphological boundaries and return each
+    /// word's surface form plus its orthographic hiragana reading. Analyzing the *whole* line
+    /// is what lets context-sensitive readings come out right — e.g. `7年` is seen together so
+    /// 年 reads as the counter ねん (rather than the standalone noun とし the system tokenizer
+    /// would produce if 年 were handed over in isolation). Pass one line at a time (no
+    /// newlines); empty input returns `[]`.
+    public func words(for line: String) -> [OpenJTalkWord] {
+        lock.lock()
+        defer { lock.unlock() }
+        return frontend.runFrontend(line).map { word in
+            let katakana = word.read
+            guard !katakana.isEmpty else {
+                return OpenJTalkWord(surface: word.surface, reading: "")
+            }
+            let mutable = NSMutableString(string: katakana)
+            CFStringTransform(mutable, nil, kCFStringTransformHiraganaKatakana, true)
+            return OpenJTalkWord(surface: word.surface, reading: mutable as String)
+        }
     }
 
     private func reading(for text: String, keyPath: KeyPath<OJTWord, String>) -> String? {
