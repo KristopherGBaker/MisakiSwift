@@ -7,8 +7,8 @@ adds a full **Japanese** G2P path (true readings, pitch-accent metadata, and
 furigana support) plus a few English accuracy fixes.
 
 It is the G2P backing our [KokoroSwift fork](https://github.com/KristopherGBaker/kokoro-ios)
-and [Aoede](https://github.com/KristopherGBaker/Aoede), a local-first reader for
-macOS and iOS/iPadOS that reads English and Japanese with furigana.
+and Aoede, a local-first reader for macOS and iOS/iPadOS that reads English and
+Japanese with furigana.
 
 > **Relationship to upstream.** The English engine — the Misaki pipeline, the
 > lexicon, the BART fallback network ported to MLX — is mlalma's port of hexgrad's
