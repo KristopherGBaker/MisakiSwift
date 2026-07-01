@@ -110,6 +110,44 @@ public final class OpenJTalkReader: @unchecked Sendable {
         }
     }
 
+    /// Tokenize a line via OpenJTalk's morphological boundaries and return each word's surface,
+    /// dictionary base form, and **reconciled** furigana reading (pron×read — correct on *both*
+    /// sound-changes and long-vowel spelling, exactly like `furiganaReading(for:)` but per word).
+    /// One frontend pass, so cross-word context (counters, sound-changes) is preserved.
+    ///
+    /// This is the word-level analog of `furiganaReading(for:)`: use it to segment furigana by
+    /// OpenJTalk's own word boundaries rather than by an external tokenizer that would split e.g.
+    /// 一つ into 一 + つ (→ いち instead of ひと) or make 撫 absorb its okurigana. Words with no
+    /// reading (punctuation) come back with `reading == ""` so the surfaces still tile the line.
+    /// Pass one line at a time (no newlines); empty input returns `[]`.
+    public func furiganaWords(for line: String) -> [OpenJTalkWord] {
+        lock.lock()
+        defer { lock.unlock() }
+        return frontend.runFrontend(line).map { word in
+            let base = word.base.isEmpty ? word.surface : word.base
+            let reading = Self.reconciledReading(pronKatakana: word.pron, readKatakana: word.read)
+            return OpenJTalkWord(surface: word.surface, baseForm: base, reading: reading)
+        }
+    }
+
+    /// The reconciled hiragana reading from a single frontend word's katakana `pron` + `read`.
+    /// Mirrors `furiganaReading(for:)` at the word granularity (pron base, read's long vowels,
+    /// pron fallback when `read` is absent).
+    private static func reconciledReading(pronKatakana: String, readKatakana: String) -> String {
+        let pron = hiragana(fromKatakana: pronKatakana)
+        guard !pron.isEmpty else { return "" }
+        let read = hiragana(fromKatakana: readKatakana)
+        guard !read.isEmpty else { return stripAccentMarks(pron) }
+        return reconcileFurigana(pron: pron, read: read)
+    }
+
+    private static func hiragana(fromKatakana katakana: String) -> String {
+        guard !katakana.isEmpty else { return "" }
+        let mutable = NSMutableString(string: katakana)
+        CFStringTransform(mutable, nil, kCFStringTransformHiraganaKatakana, true)   // katakana → hiragana
+        return mutable as String
+    }
+
     private func reading(for text: String, keyPath: KeyPath<OJTWord, String>) -> String? {
         lock.lock()
         defer { lock.unlock() }

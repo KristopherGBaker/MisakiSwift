@@ -242,6 +242,25 @@ struct FuriganaReadingTests {
         #expect(reader.hiraganaReading(for: "方") == "ほお")
         #expect(reader.orthographicHiraganaReading(for: "方") == "ほう")
     }
+
+    @Test("furiganaWords segments by OpenJTalk boundaries with reconciled readings")
+    func furiganaWordsSegmentation() throws {
+        let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
+        let reader = try #require(OpenJTalkReader(dictionaryDirectory: dir))
+
+        func reading(_ line: String, surface: String) -> String? {
+            reader.furiganaWords(for: line).first { $0.surface == surface }?.reading
+        }
+        // 一つ stays ONE word reading ひとつ (the external tokenizer would split 一 → いち):
+        #expect(reading("壺が一つ", surface: "一つ") == "ひとつ")
+        // Reconcile quality is preserved at the word level (八百 → はっぴゃく, not はちひゃく):
+        #expect(reader.furiganaWords(for: "八百").map(\.reading).joined() == "はっぴゃく")
+        // 撫でる is one word なでる (so 撫 won't absorb its okurigana into なで):
+        #expect(reader.furiganaWords(for: "彼を撫でる").contains { $0.surface == "撫でる" && $0.reading == "なでる" })
+        // Surfaces tile the line (punctuation carried through with an empty reading):
+        let joined = reader.furiganaWords(for: "壺が一つ").map(\.surface).joined()
+        #expect(joined == "壺が一つ")
+    }
 }
 
 // MARK: - Reconcile helper (pure, no dictionary)
