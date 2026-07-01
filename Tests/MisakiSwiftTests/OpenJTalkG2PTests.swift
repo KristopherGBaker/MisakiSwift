@@ -189,6 +189,14 @@ struct FuriganaReadingTests {
         // Genuine double vowels preserved:
         #expect(reader.furiganaReading(for: "大きい") == "おおきい")
         #expect(reader.furiganaReading(for: "通り") == "とおり")
+        // Accent-nucleus marker (’ U+2019) in pron must not leak into furigana, and must not
+        // inflate the mora count (which would strand a spoken long vowel): pron gives けっし’て /
+        // ごち’そお / ち’そお, but furigana is the clean, orthographic reading.
+        #expect(reader.furiganaReading(for: "決して") == "けっして")
+        #expect(reader.furiganaReading(for: "ご馳走") == "ごちそう")
+        #expect(reader.furiganaReading(for: "馳走") == "ちそう")
+        // And the accent marker never survives in the output at all:
+        #expect(reader.furiganaReading(for: "決して")?.contains("\u{2019}") == false)
     }
 
     @Test("furiganaReading preserves nil-semantics — matches the pron accessor on the same input")

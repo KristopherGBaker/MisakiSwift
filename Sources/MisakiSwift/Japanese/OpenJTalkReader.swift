@@ -81,8 +81,9 @@ public final class OpenJTalkReader: @unchecked Sendable {
     public func furiganaReading(for text: String) -> String? {
         // nil-semantics follow the pron accessor (`hiraganaReading`): nil iff no reading.
         guard let pron = reading(for: text, keyPath: \.pron) else { return nil }
-        // If `read` is somehow absent, fall back to the audio-truth rather than dropping the word.
-        guard let read = reading(for: text, keyPath: \.read) else { return pron }
+        // If `read` is somehow absent, fall back to the audio-truth rather than dropping the word
+        // (still stripped of the accent marker so it never leaks into the furigana).
+        guard let read = reading(for: text, keyPath: \.read) else { return Self.stripAccentMarks(pron) }
         return Self.reconcileFurigana(pron: pron, read: read)
     }
 
@@ -135,7 +136,14 @@ public final class OpenJTalkReader: @unchecked Sendable {
     /// Fallback: if `pron` and `read` cannot be aligned mora-for-mora (unequal mora count after
     /// small-kana normalization — e.g. differing gemination っ / ん), `pron` is returned unchanged.
     /// The audio-truth is never discarded in favour of a `read` we cannot line up.
-    internal static func reconcileFurigana(pron: String, read: String) -> String {
+    internal static func reconcileFurigana(pron rawPron: String, read rawRead: String) -> String {
+        // OpenJTalk `pron` carries an accent-nucleus marker (’ U+2019) that is not a mora. Strip it
+        // (and a plain ASCII ' defensively) from both readings first — otherwise it both leaks into
+        // the furigana (決して → けっし’て) AND inflates pron's mora count, spuriously tripping the
+        // count-mismatch fallback so a spoken long vowel goes uncorrected (ご馳走 → ごち’そお instead
+        // of ごちそう). `read` is normally clean; stripping it too is harmless.
+        let pron = stripAccentMarks(rawPron)
+        let read = stripAccentMarks(rawRead)
         let pronMoras = moras(pron)
         let readMoras = moras(read)
         guard pronMoras.count == readMoras.count else { return pron }   // audio-truth fallback
@@ -153,6 +161,17 @@ public final class OpenJTalkReader: @unchecked Sendable {
             }
         }
         return out.joined()
+    }
+
+    /// OpenJTalk accent-nucleus markers that ride along in `pron` (’ U+2019, plus a plain ASCII
+    /// apostrophe defensively). They are prosody, not moras, and are never wanted in furigana.
+    private static let accentMarks: Set<Character> = ["\u{2019}", "\u{0027}"]
+
+    /// Strip the accent-nucleus marker(s) from a hiragana reading.
+    private static func stripAccentMarks(_ reading: String) -> String {
+        reading.contains(where: accentMarks.contains)
+            ? String(reading.filter { !accentMarks.contains($0) })
+            : reading
     }
 
     /// True when the differing pair is exactly a long-vowel lengthener: spoken お / え (in `pron`)
