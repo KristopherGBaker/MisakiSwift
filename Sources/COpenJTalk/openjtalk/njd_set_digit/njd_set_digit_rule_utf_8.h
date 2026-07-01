@@ -80,6 +80,11 @@ NJD_SET_DIGIT_RULE_H_START;
 #define NJD_SET_DIGIT_FIVE_BEFORE_DP "ゴー"
 #define NJD_SET_DIGIT_FIVE_AFTER_DP "ゴー"
 #define NJD_SET_DIGIT_SIX "六"
+#define NJD_SET_DIGIT_THREE "三"
+/* Merged feature line for the 二三 idiom (にさん, "a few"): one node reading
+   ニサン, mirroring the standalone dictionary entry にさん (名詞/副詞可能, acc 1,
+   3 moras). Used by the 二三 idiom guard in njd_set_digit(). */
+#define NJD_SET_DIGIT_NISAN "二三,名詞,副詞可能,*,*,*,*,二三,ニサン,ニサン,1/3,*"
 #define NJD_SET_DIGIT_NIN "人"
 #define NJD_SET_DIGIT_GATSU "月"
 #define NJD_SET_DIGIT_NICHI "日"

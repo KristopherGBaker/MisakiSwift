@@ -408,6 +408,26 @@ static void convert_digit_sequence(NJD * njd, NJDNode * s, NJDNode * e)
       return;
    }
 
+   /* 二三 idiom guard (にさん, "a few"): the bare digit pair 二 + 三 — and its
+      counter forms 二三日 / 二三人 — is the idiom にさん, NOT the number 23
+      (にじゅうさん). The place-value folding below would otherwise concatenate the
+      two digits into ニジュウサン. For exactly this two-node 二 → 三 run, merge it
+      into a single node reading ニサン (matching the dictionary entry にさん) and
+      silence the second node so both the phoneme and furigana paths — which share
+      this frontend — read にさん / ニサン as one accent phrase (identical to a
+      literal にさん). Scoped strictly to this pair: any longer run (二十三, 二三四,
+      二千八百, dates, …) is untouched and still folds normally. */
+   if (s->next == e &&
+       strcmp(NJDNode_get_string(s), NJD_SET_DIGIT_TWO) == 0 &&
+       strcmp(NJDNode_get_string(e), NJD_SET_DIGIT_THREE) == 0) {
+      NJDNode_load(s, NJD_SET_DIGIT_NISAN);
+      /* Silence the now-absorbed 三: a NULL pron marks it for removal by the
+         NJD_remove_silent_node pass, avoiding a use-after-free that removing the
+         tail node mid-iteration would cause. */
+      NJDNode_set_pron(e, NULL);
+      return;
+   }
+
    /* find final digit before period */
    while (final_digit_before_period->next != NULL && final_digit_before_period != e &&
           is_period(NJDNode_get_string(final_digit_before_period->next)) != 1) {
