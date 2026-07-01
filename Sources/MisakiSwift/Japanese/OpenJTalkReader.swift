@@ -63,6 +63,29 @@ public final class OpenJTalkReader: @unchecked Sendable {
         reading(for: text, keyPath: \.read)
     }
 
+    /// Reconciled hiragana furigana reading for `text` — correct on **both** sound-changes and
+    /// long-vowel spelling. It combines the two existing readings mora-by-mora:
+    ///
+    /// - **pron** (`hiraganaReading`) is the base: it has the right sound-changes (八百→はっぴゃく,
+    ///   not はちひゃく) but spells long vowels phonetically (方→ほお, 先生→せんせえ).
+    /// - **read** (`orthographicHiraganaReading`) has the right orthographic long vowels (方→ほう,
+    ///   先生→せんせい) but the wrong sound-changes (八百→はちひゃく).
+    ///
+    /// The pron×read rule (see `reconcileFurigana(pron:read:)`): keep `pron` everywhere, except
+    /// where an aligned mora differs *only* by a long-vowel lengthener — `pron` shows the spoken
+    /// vowel (お-column …お / え-column …え) while `read` shows the orthographic one (…う / …い) —
+    /// there the mora from `read` is taken. Genuine double vowels (both agree) pass through.
+    ///
+    /// Preserves the existing multi-word concatenation and nil-semantics: returns `nil` exactly
+    /// when the frontend yields no reading (same as `hiraganaReading` on the same input).
+    public func furiganaReading(for text: String) -> String? {
+        // nil-semantics follow the pron accessor (`hiraganaReading`): nil iff no reading.
+        guard let pron = reading(for: text, keyPath: \.pron) else { return nil }
+        // If `read` is somehow absent, fall back to the audio-truth rather than dropping the word.
+        guard let read = reading(for: text, keyPath: \.read) else { return pron }
+        return Self.reconcileFurigana(pron: pron, read: read)
+    }
+
     /// Tokenize a Japanese line via OpenJTalk's own morphological boundaries and return each
     /// word's surface form plus its orthographic hiragana reading. Analyzing the *whole* line
     /// is what lets context-sensitive readings come out right — e.g. `7年` is seen together so
@@ -96,4 +119,88 @@ public final class OpenJTalkReader: @unchecked Sendable {
         let hiragana = mutable as String
         return hiragana.isEmpty ? nil : hiragana
     }
+
+    // MARK: - Furigana reconcile (pure, dictionary-free)
+
+    /// Reconcile a phonetic `pron` reading against an orthographic `read` reading, both hiragana,
+    /// mora by mora. Pure and dictionary-free (unit-tested in isolation).
+    ///
+    /// The pron×read rule: `pron` is the base — its sound-changes are correct. Where an aligned
+    /// mora differs *only* by a long-vowel lengthener — `pron` shows the spoken long vowel
+    /// (お after an お-column mora / え after an え-column mora) while `read` shows the orthographic
+    /// spelling (…う / …い) — the mora from `read` is taken. When the moras agree they pass through
+    /// unchanged (genuine double vowels, e.g. おおきい), and when they differ in any other way the
+    /// `pron` mora wins (a true sound-change, e.g. 八百 はっぴゃく vs はちひゃく).
+    ///
+    /// Fallback: if `pron` and `read` cannot be aligned mora-for-mora (unequal mora count after
+    /// small-kana normalization — e.g. differing gemination っ / ん), `pron` is returned unchanged.
+    /// The audio-truth is never discarded in favour of a `read` we cannot line up.
+    internal static func reconcileFurigana(pron: String, read: String) -> String {
+        let pronMoras = moras(pron)
+        let readMoras = moras(read)
+        guard pronMoras.count == readMoras.count else { return pron }   // audio-truth fallback
+
+        var out: [String] = []
+        out.reserveCapacity(pronMoras.count)
+        for (index, pronMora) in pronMoras.enumerated() {
+            let readMora = readMoras[index]
+            if pronMora != readMora,
+               isLongVowelLengthener(pron: pronMora, read: readMora,
+                                     previousVowel: out.last.flatMap(terminalVowel)) {
+                out.append(readMora)    // orthographic long-vowel spelling from `read`
+            } else {
+                out.append(pronMora)    // pron base: sound-changes and genuine double vowels
+            }
+        }
+        return out.joined()
+    }
+
+    /// True when the differing pair is exactly a long-vowel lengthener: spoken お / え (in `pron`)
+    /// against the orthographic う / い (in `read`) following an お-column / え-column mora.
+    private static func isLongVowelLengthener(pron: String, read: String,
+                                             previousVowel: Character?) -> Bool {
+        switch (pron, read) {
+        case ("お", "う"): return previousVowel == "o"   // …お-column お → spelled う
+        case ("え", "い"): return previousVowel == "e"   // …え-column え → spelled い
+        default: return false
+        }
+    }
+
+    /// Split a hiragana reading into moras, folding small combining kana (ゃゅょ, ぁぃぅぇぉ, ゎ)
+    /// into their preceding base mora. Gemination っ, syllabic ん and chōonpu ー are their own moras.
+    private static func moras(_ reading: String) -> [String] {
+        var result: [String] = []
+        for character in reading {
+            if smallCombiningKana.contains(character), let last = result.last {
+                result[result.count - 1] = last + String(character)
+            } else {
+                result.append(String(character))
+            }
+        }
+        return result
+    }
+
+    /// The terminal vowel (a/i/u/e/o) of a hiragana mora, or `nil` for moras with no vowel
+    /// column (っ, ん, ー, punctuation). Used to detect the phonological long-vowel context.
+    private static func terminalVowel(_ mora: String) -> Character? {
+        guard let last = mora.last else { return nil }
+        return vowelByKana[last]
+    }
+
+    private static let smallCombiningKana: Set<Character> = [
+        "ゃ", "ゅ", "ょ", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ", "ゎ"
+    ]
+
+    private static let vowelByKana: [Character: Character] = [
+        "あ": "a", "か": "a", "さ": "a", "た": "a", "な": "a", "は": "a", "ま": "a", "や": "a",
+        "ら": "a", "わ": "a", "が": "a", "ざ": "a", "だ": "a", "ば": "a", "ぱ": "a", "ゃ": "a", "ぁ": "a",
+        "い": "i", "き": "i", "し": "i", "ち": "i", "に": "i", "ひ": "i", "み": "i", "り": "i",
+        "ぎ": "i", "じ": "i", "ぢ": "i", "び": "i", "ぴ": "i", "ぃ": "i",
+        "う": "u", "く": "u", "す": "u", "つ": "u", "ぬ": "u", "ふ": "u", "む": "u", "ゆ": "u",
+        "る": "u", "ぐ": "u", "ず": "u", "づ": "u", "ぶ": "u", "ぷ": "u", "ゅ": "u", "ぅ": "u",
+        "え": "e", "け": "e", "せ": "e", "て": "e", "ね": "e", "へ": "e", "め": "e", "れ": "e",
+        "げ": "e", "ぜ": "e", "で": "e", "べ": "e", "ぺ": "e", "ぇ": "e",
+        "お": "o", "こ": "o", "そ": "o", "と": "o", "の": "o", "ほ": "o", "も": "o", "よ": "o",
+        "ろ": "o", "を": "o", "ご": "o", "ぞ": "o", "ど": "o", "ぼ": "o", "ぽ": "o", "ょ": "o", "ぉ": "o"
+    ]
 }
