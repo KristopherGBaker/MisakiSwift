@@ -19,10 +19,40 @@ public struct OpenJTalkWord: Sendable, Hashable {
     public let baseForm: String
     public let reading: String
 
-    public init(surface: String, baseForm: String, reading: String) {
+    /// Accent nucleus as a 1-based mora index, or 0 for heiban (no downstep).
+    /// This is NJD's `acc`, produced by `njd_set_accent_type` during analysis.
+    /// A value of 2 on a 3-mora word means the pitch falls after its second mora.
+    public let accent: Int
+
+    /// Number of moras in the reading. Pairs with `accent`, which is meaningless
+    /// without it: a nucleus of 3 is final-accented on a 3-mora word and
+    /// impossible on a 2-mora one.
+    public let moraCount: Int
+
+    /// How this word joins the previous one into an accent phrase, from NJD's
+    /// `chain_flag`: -1 begins a phrase, 1 attaches to the preceding word, 0
+    /// starts a new one. Accent is a property of the phrase rather than the
+    /// word, so a consumer rendering pitch needs this to group words correctly.
+    public let accentPhraseChain: Int
+
+    /// Whether this word attaches to the preceding one rather than beginning a
+    /// new accent phrase.
+    public var attachesToPreviousWord: Bool { accentPhraseChain == 1 }
+
+    public init(
+        surface: String,
+        baseForm: String,
+        reading: String,
+        accent: Int = 0,
+        moraCount: Int = 0,
+        accentPhraseChain: Int = 0
+    ) {
         self.surface = surface
         self.baseForm = baseForm
         self.reading = reading
+        self.accent = accent
+        self.moraCount = moraCount
+        self.accentPhraseChain = accentPhraseChain
     }
 }
 
@@ -102,11 +132,15 @@ public final class OpenJTalkReader: @unchecked Sendable {
             let base = word.base.isEmpty ? word.surface : word.base
             let katakana = word.read
             guard !katakana.isEmpty else {
-                return OpenJTalkWord(surface: word.surface, baseForm: base, reading: "")
+                return OpenJTalkWord(
+                    surface: word.surface, baseForm: base, reading: "",
+                    accent: word.acc, moraCount: word.moraSize, accentPhraseChain: word.chainFlag)
             }
             let mutable = NSMutableString(string: katakana)
             CFStringTransform(mutable, nil, kCFStringTransformHiraganaKatakana, true)
-            return OpenJTalkWord(surface: word.surface, baseForm: base, reading: mutable as String)
+            return OpenJTalkWord(
+                surface: word.surface, baseForm: base, reading: mutable as String,
+                accent: word.acc, moraCount: word.moraSize, accentPhraseChain: word.chainFlag)
         }
     }
 
@@ -126,7 +160,9 @@ public final class OpenJTalkReader: @unchecked Sendable {
         return frontend.runFrontend(line).map { word in
             let base = word.base.isEmpty ? word.surface : word.base
             let reading = Self.reconciledReading(pronKatakana: word.pron, readKatakana: word.read)
-            return OpenJTalkWord(surface: word.surface, baseForm: base, reading: reading)
+            return OpenJTalkWord(
+                surface: word.surface, baseForm: base, reading: reading,
+                accent: word.acc, moraCount: word.moraSize, accentPhraseChain: word.chainFlag)
         }
     }
 
