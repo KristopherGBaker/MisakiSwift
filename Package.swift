@@ -14,6 +14,12 @@ let package = Package(
       type: .dynamic,
       targets: ["MisakiSwift"]
     ),
+    // The Open JTalk reading path with no MLX and no CoreFoundation, so it cross-compiles
+    // for Android. `MisakiSwift` re-exports it, so existing consumers see no change.
+    .library(
+      name: "MisakiJapanese",
+      targets: ["MisakiJapanese"]
+    ),
   ],
   dependencies: [
     .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.4"),
@@ -73,10 +79,17 @@ let package = Package(
         .define("VERSION", to: "\"1.11\"")
       ]
     ),
+    // Portable half: Open JTalk morphology and readings. Foundation + COpenJTalk only.
+    // Everything MLX-shaped, and the CoreFoundation G2P fallback, stay in MisakiSwift.
+    .target(
+      name: "MisakiJapanese",
+      dependencies: ["COpenJTalk"]
+    ),
     .target(
       name: "MisakiSwift",
       dependencies: [
         "COpenJTalk",
+        "MisakiJapanese",
         .product(name: "MLX", package: "mlx-swift"),
         .product(name: "MLXNN", package: "mlx-swift"),
         .product(name: "MLXUtilsLibrary", package: "MLXUtilsLibrary")
@@ -86,8 +99,12 @@ let package = Package(
      ]
     ),
     .testTarget(
+      name: "MisakiJapaneseTests",
+      dependencies: ["MisakiJapanese"]
+    ),
+    .testTarget(
       name: "MisakiSwiftTests",
-      dependencies: ["MisakiSwift"]
+      dependencies: ["MisakiSwift", "MisakiJapanese"]
     ),
   ]
 )

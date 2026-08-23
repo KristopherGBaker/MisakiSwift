@@ -1,3 +1,6 @@
+// NOTE: `OJTFrontend` and `OJTWord` are `public` because `OpenJTalkG2P`, which stays in the
+// MLX-dependent `MisakiSwift` module, drives them. They are SPI for that sibling rather than
+// API for applications.
 //
 //  MisakiSwift — Swift wrapper over the COpenJTalk C frontend
 //
@@ -12,25 +15,25 @@ import COpenJTalk
 import Foundation
 
 /// One NJD word, copied out of the C result into Swift-owned storage.
-struct OJTWord {
-    var surface: String
+public struct OJTWord {
+    public var surface: String
     /// NJD `orig` — the dictionary base form (食べました→食べる), useful for JMDict lookup.
-    var base: String
-    var pron: String
+    public var base: String
+    public var pron: String
     /// Orthographic katakana reading (キョウ), distinct from the phonetic `pron` (キョー).
-    var read: String
-    var pos: String
-    var acc: Int
-    var moraSize: Int
-    var chainFlag: Int
+    public var read: String
+    public var pos: String
+    public var acc: Int
+    public var moraSize: Int
+    public var chainFlag: Int
 }
 
-final class OJTFrontend {
+public final class OJTFrontend {
     private let handle: OpaquePointer
 
     /// Load the UTF-8 Open JTalk dictionary at `dictionaryDirectory`.
     /// - Returns: `nil` if the dictionary is missing or fails to load.
-    init?(dictionaryDirectory: URL) {
+    public init?(dictionaryDirectory: URL) {
         guard let handle = dictionaryDirectory.path.withCString({ ojt_frontend_create($0) }) else {
             return nil
         }
@@ -42,7 +45,7 @@ final class OJTFrontend {
     }
 
     /// Run the text-processing frontend on `text`, returning its NJD words.
-    func runFrontend(_ text: String) -> [OJTWord] {
+    public func runFrontend(_ text: String) -> [OJTWord] {
         let result = text.withCString { ojt_run_frontend(handle, $0) }
         defer { ojt_result_free(result) }
         guard result.count > 0, let words = result.words else { return [] }

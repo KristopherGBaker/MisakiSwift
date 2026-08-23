@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+@testable import MisakiJapanese
 @testable import MisakiSwift
 
 /// The dictionary lives outside the repo (it is downloaded on first use), so these

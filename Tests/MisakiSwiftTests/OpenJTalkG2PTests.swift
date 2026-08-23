@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+@testable import MisakiJapanese
 @testable import MisakiSwift
 
 // MARK: - Pure logic (no dictionary, no MLX)

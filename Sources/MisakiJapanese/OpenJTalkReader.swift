@@ -136,10 +136,9 @@ public final class OpenJTalkReader: @unchecked Sendable {
                     surface: word.surface, baseForm: base, reading: "",
                     accent: word.acc, moraCount: word.moraSize, accentPhraseChain: word.chainFlag)
             }
-            let mutable = NSMutableString(string: katakana)
-            CFStringTransform(mutable, nil, kCFStringTransformHiraganaKatakana, true)
             return OpenJTalkWord(
-                surface: word.surface, baseForm: base, reading: mutable as String,
+                surface: word.surface, baseForm: base,
+                reading: KanaConversion.hiragana(fromKatakana: katakana),
                 accent: word.acc, moraCount: word.moraSize, accentPhraseChain: word.chainFlag)
         }
     }
@@ -178,10 +177,7 @@ public final class OpenJTalkReader: @unchecked Sendable {
     }
 
     private static func hiragana(fromKatakana katakana: String) -> String {
-        guard !katakana.isEmpty else { return "" }
-        let mutable = NSMutableString(string: katakana)
-        CFStringTransform(mutable, nil, kCFStringTransformHiraganaKatakana, true)   // katakana → hiragana
-        return mutable as String
+        KanaConversion.hiragana(fromKatakana: katakana)
     }
 
     private func reading(for text: String, keyPath: KeyPath<OJTWord, String>) -> String? {
@@ -189,9 +185,7 @@ public final class OpenJTalkReader: @unchecked Sendable {
         defer { lock.unlock() }
         let katakana = frontend.runFrontend(text).map { $0[keyPath: keyPath] }.joined()
         guard !katakana.isEmpty else { return nil }
-        let mutable = NSMutableString(string: katakana)
-        CFStringTransform(mutable, nil, kCFStringTransformHiraganaKatakana, true)   // katakana → hiragana
-        let hiragana = mutable as String
+        let hiragana = KanaConversion.hiragana(fromKatakana: katakana)
         return hiragana.isEmpty ? nil : hiragana
     }
 
