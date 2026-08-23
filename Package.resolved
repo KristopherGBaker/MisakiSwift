@@ -1,5 +1,5 @@
 {
-  "originHash" : "e03543e6c1050663941f02a9185db27faa381765e4ddc68eb9b88f6a54eacb11",
+  "originHash" : "ae9f28937e0646813356389b17c615be04461979a9555708cc11cc167e0d2c80",
   "pins" : [
     {
       "identity" : "mlx-swift",
@@ -13,10 +13,10 @@
     {
       "identity" : "mlxutilslibrary",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mlalma/MLXUtilsLibrary.git",
+      "location" : "https://github.com/KristopherGBaker/MLXUtilsLibrary",
       "state" : {
-        "revision" : "41f6cfd5d68b65aa3c65a34efe3b71c371ed915b",
-        "version" : "0.0.6"
+        "branch" : "kits-android",
+        "revision" : "575119720c4cb81181f4e9412ece2f5b40902db1"
       }
     },
     {
@@ -31,10 +31,10 @@
     {
       "identity" : "zipfoundation",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/weichsel/ZIPFoundation.git",
+      "location" : "https://github.com/KristopherGBaker/ZIPFoundation",
       "state" : {
-        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
-        "version" : "0.9.20"
+        "branch" : "kits-android",
+        "revision" : "1f201cdfce33a09b472238a6ec3e43babb39d2de"
       }
     }
   ],

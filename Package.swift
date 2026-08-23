@@ -23,7 +23,16 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.4"),
-    .package(url: "https://github.com/mlalma/MLXUtilsLibrary.git", exact: "0.0.6")
+    // Our fork of 0.0.6, whose ONLY change is repointing its ZIPFoundation at the Kits fork.
+    //
+    // SwiftPM keys package identity on the URL's last path component, so upstream
+    // `weichsel/ZIPFoundation` and that fork are ONE package to it. Upstream MLXUtilsLibrary
+    // depends on upstream ZIPFoundation, so any consumer whose graph also reaches the Kits
+    // fork gets two locations for one identity and a pin that cannot be checked out
+    // ("Couldn't check out revision ..."). Pointing at the fork HERE means consumers do not
+    // have to know: taking the MLX-free `MisakiJapanese` product previously still dragged
+    // this whole graph in and broke on exactly that.
+    .package(url: "https://github.com/KristopherGBaker/MLXUtilsLibrary", branch: "kits-android")
   ],
   targets: [
     // Vendored Open JTalk text-processing frontend (modified-BSD, NOT GPL). Exposes
