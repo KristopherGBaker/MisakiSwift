@@ -33,6 +33,7 @@
 //
 
 import Foundation
+import MisakiJapanese
 import MLXUtilsLibrary
 
 public final class JapaneseG2P {

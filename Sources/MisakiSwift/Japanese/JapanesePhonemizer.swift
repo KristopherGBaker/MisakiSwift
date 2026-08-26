@@ -9,6 +9,7 @@
 //
 
 import Foundation
+import MisakiJapanese
 import MLXUtilsLibrary
 
 /// The common Japanese G2P interface (both engines already expose this signature).

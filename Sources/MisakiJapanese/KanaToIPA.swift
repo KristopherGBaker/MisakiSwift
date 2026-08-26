@@ -11,12 +11,12 @@
 
 import Foundation
 
-enum KanaToIPA {
+public enum KanaToIPA {
 
     private static let sutegana: Set<Character> = ["ゃ", "ゅ", "ょ", "ぁ", "ぃ", "ぅ", "ぇ", "ぉ"]
 
     /// Convert a hiragana string to Kokoro-vocab IPA.
-    static func ipa(forHiragana hira: String) -> String {
+    public static func ipa(forHiragana hira: String) -> String {
         let chars = Array(hira)
         var out = ""
         for index in 0..<chars.count {
@@ -48,7 +48,7 @@ enum KanaToIPA {
     /// U+30F6 → U+3041…U+3096). The prolonged-sound mark ー (U+30FC) and any
     /// non-katakana characters (accent marks like ’, punctuation) pass through
     /// unchanged; `ipa(forHiragana:)` then handles ー and ignores the rest.
-    static func katakanaToHiragana(_ katakana: String) -> String {
+    public static func katakanaToHiragana(_ katakana: String) -> String {
         var out = ""
         out.reserveCapacity(katakana.count)
         for scalar in katakana.unicodeScalars {

@@ -8,9 +8,9 @@
 //  hand-editing. See JapaneseG2P.swift for how the maps are applied.
 //
 
-enum KanaIPA {
+public enum KanaIPA {
     /// 113 single-kana + symbol entries (hiragana → IPA).
-    static let single: [Character: String] = [
+    public static let single: [Character: String] = [
         "ぁ": "a",
         "あ": "a",
         "ぃ": "i",
@@ -127,7 +127,7 @@ enum KanaIPA {
     ]
 
     /// 76 digraph (two-kana) entries, e.g. きゃ → kʲa.
-    static let digraph: [String: String] = [
+    public static let digraph: [String: String] = [
         "いぇ": "je",
         "うぃ": "βi",
         "うぇ": "βe",
