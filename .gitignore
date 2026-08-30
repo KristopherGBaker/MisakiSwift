@@ -62,3 +62,6 @@ fastlane/test_output
 
 # Android cross-compile scratch (Scripts use --scratch-path .build-android)
 .build-android/
+
+# Sparra role traces are machine-local working state, not fork content.
+.sparra/
