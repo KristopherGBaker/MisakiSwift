@@ -102,9 +102,12 @@ public final class OpenJTalkReader: @unchecked Sendable {
     ///   先生→せんせい) but the wrong sound-changes (八百→はちひゃく).
     ///
     /// The pron×read rule (see `reconcileFurigana(pron:read:)`): keep `pron` everywhere, except
-    /// where an aligned mora differs *only* by a long-vowel lengthener — `pron` shows the spoken
-    /// vowel (お-column …お / え-column …え) while `read` shows the orthographic one (…う / …い) —
-    /// there the mora from `read` is taken. Genuine double vowels (both agree) pass through.
+    /// where an aligned mora differs by a known **orthographic alternation** — a long-vowel
+    /// lengthener (お-column …お / え-column …え spoken, spelled …う / …い), a bare chōonpu `ー`
+    /// standing in for a spelled-out vowel (the split volitional 行こ+**ー** → 行こ+う), the
+    /// yotsugana pairs ず/づ and じ/ぢ, or a contracted particle (は spoken わ, へ spoken え, を
+    /// spoken お) — there the mora from `read` is taken. Genuine double vowels (both agree) pass
+    /// through, and genuine sound-changes (both differ some other way) keep `pron`.
     ///
     /// Preserves the existing multi-word concatenation and nil-semantics: returns `nil` exactly
     /// when the frontend yields no reading (same as `hiraganaReading` on the same input).
@@ -195,11 +198,12 @@ public final class OpenJTalkReader: @unchecked Sendable {
     /// mora by mora. Pure and dictionary-free (unit-tested in isolation).
     ///
     /// The pron×read rule: `pron` is the base — its sound-changes are correct. Where an aligned
-    /// mora differs *only* by a long-vowel lengthener — `pron` shows the spoken long vowel
-    /// (お after an お-column mora / え after an え-column mora) while `read` shows the orthographic
-    /// spelling (…う / …い) — the mora from `read` is taken. When the moras agree they pass through
-    /// unchanged (genuine double vowels, e.g. おおきい), and when they differ in any other way the
-    /// `pron` mora wins (a true sound-change, e.g. 八百 はっぴゃく vs はちひゃく).
+    /// mora differs by a known **orthographic alternation** (see `isOrthographicAlternation`) —
+    /// a long-vowel lengthener, a bare chōonpu standing in for `read`'s spelled-out vowel, a
+    /// yotsugana pair (ず/づ, じ/ぢ), or a contracted particle (は/へ/を spoken わ/え/お) — the
+    /// mora from `read` is taken. When the moras agree they pass through unchanged (genuine
+    /// double vowels, e.g. おおきい), and when they differ in any other way the `pron` mora wins
+    /// (a true sound-change, e.g. 八百 はっぴゃく vs はちひゃく).
     ///
     /// Fallback: if `pron` and `read` cannot be aligned mora-for-mora (unequal mora count after
     /// small-kana normalization — e.g. differing gemination っ / ん), `pron` is returned unchanged.
@@ -221,9 +225,9 @@ public final class OpenJTalkReader: @unchecked Sendable {
         for (index, pronMora) in pronMoras.enumerated() {
             let readMora = readMoras[index]
             if pronMora != readMora,
-               isLongVowelLengthener(pron: pronMora, read: readMora,
-                                     previousVowel: out.last.flatMap(terminalVowel)) {
-                out.append(readMora)    // orthographic long-vowel spelling from `read`
+               isOrthographicAlternation(pron: pronMora, read: readMora,
+                                         previousVowel: out.last.flatMap(terminalVowel)) {
+                out.append(readMora)    // orthographic spelling from `read`
             } else {
                 out.append(pronMora)    // pron base: sound-changes and genuine double vowels
             }
@@ -242,13 +246,30 @@ public final class OpenJTalkReader: @unchecked Sendable {
             : reading
     }
 
-    /// True when the differing pair is exactly a long-vowel lengthener: spoken お / え (in `pron`)
-    /// against the orthographic う / い (in `read`) following an お-column / え-column mora.
-    private static func isLongVowelLengthener(pron: String, read: String,
-                                             previousVowel: Character?) -> Bool {
+    /// True when the differing `(pron, read)` pair at an aligned mora is a known **orthographic
+    /// alternation** — `read`'s spelling is a legitimate way of writing the sound `pron` gives —
+    /// rather than a genuine sound-change, in which case `pron` must keep winning.
+    ///
+    /// - Long-vowel lengthener: spoken お / え (in `pron`) against the orthographic う / い (in
+    ///   `read`), but only following an お-column / え-column mora (方 ほ+お→ほ+う, 先生 せんせ+え
+    ///   →せんせ+い). Unconditioned, this would also fire on unrelated お/う or え/い pairs that
+    ///   are a genuine sound-change rather than a lengthener.
+    /// - Bare chōonpu: `pron` is `ー` as its own mora — the lengthener detached from its vowel,
+    ///   which is what OpenJTalk produces for the volitional auxiliary when it splits 行こう into
+    ///   行こ + う (that word's `pron` is a lone ー with nothing before it to attach to). `read`
+    ///   always has the real vowel here, so this direction needs no previous-vowel condition.
+    /// - Yotsugana: ず/づ and じ/ぢ are pronounced identically; `read`'s spelling is etymological
+    ///   (歴史的仮名遣い) and always correct for furigana (近づく, 気づく, 続ける).
+    /// - Contracted particles: は spoken わ, へ spoken え, を spoken お. These never draw their
+    ///   own ruby but do feed a concatenated reading that spans them (今晩は → こんばんは).
+    private static func isOrthographicAlternation(pron: String, read: String,
+                                                   previousVowel: Character?) -> Bool {
         switch (pron, read) {
         case ("お", "う"): return previousVowel == "o"   // …お-column お → spelled う
         case ("え", "い"): return previousVowel == "e"   // …え-column え → spelled い
+        case ("ー", _): return true                      // detached lengthener → read's real vowel
+        case ("ず", "づ"), ("じ", "ぢ"): return true       // yotsugana
+        case ("わ", "は"), ("え", "へ"), ("お", "を"): return true   // contracted particle
         default: return false
         }
     }
