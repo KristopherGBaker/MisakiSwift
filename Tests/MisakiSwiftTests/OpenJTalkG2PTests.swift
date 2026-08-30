@@ -28,11 +28,11 @@ struct OpenJTalkPureTests {
 
     @Test("pron2moras: greedy digraph grouping, drops non-mora marks")
     func pronToMoras() {
-        #expect(OpenJTalkG2P.pronToMoras("ハシ") == ["ハ", "シ"])
-        #expect(OpenJTalkG2P.pronToMoras("キョウ") == ["キョ", "ウ"])
+        #expect(OpenJTalkKokoroG2P.pronToMoras("ハシ") == ["ハ", "シ"])
+        #expect(OpenJTalkKokoroG2P.pronToMoras("キョウ") == ["キョ", "ウ"])
         // ッ / ー / ン are their own moras; accent mark ’ is dropped.
-        #expect(OpenJTalkG2P.pronToMoras("ガク’セー") == ["ガ", "ク", "セ", "ー"])
-        #expect(OpenJTalkG2P.pronToMoras("ミッカ") == ["ミ", "ッ", "カ"])
+        #expect(OpenJTalkKokoroG2P.pronToMoras("ガク’セー") == ["ガ", "ク", "セ", "ー"])
+        #expect(OpenJTalkKokoroG2P.pronToMoras("ミッカ") == ["ミ", "ッ", "カ"])
     }
 }
 
@@ -53,7 +53,7 @@ struct OpenJTalkIntegrationTests {
     @Test("二三 idiom reads にさん / ニサン (not にじゅうさん / ニジュウサン) across all three surfaces")
     func nisanIdiom() throws {
         let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
-        let g2p = try #require(OpenJTalkG2P(dictionaryDirectory: dir))
+        let g2p = try #require(OpenJTalkKokoroG2P(dictionaryDirectory: dir))
         let reader = try #require(OpenJTalkReader(dictionaryDirectory: dir))
 
         // Furigana: OpenJTalkReader orthographic hiragana.
@@ -77,7 +77,7 @@ struct OpenJTalkIntegrationTests {
     @Test("no-regression: genuine numbers unchanged vs unmodified baseline (literal-pinned)")
     func genuineNumbersUnchanged() throws {
         let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
-        let g2p = try #require(OpenJTalkG2P(dictionaryDirectory: dir))
+        let g2p = try #require(OpenJTalkKokoroG2P(dictionaryDirectory: dir))
         let reader = try #require(OpenJTalkReader(dictionaryDirectory: dir))
 
         // Literals captured from the UNMODIFIED baseline (frontend on HEAD before the fix):
@@ -98,7 +98,7 @@ struct OpenJTalkIntegrationTests {
     @Test("phonemic pitch: 箸 (acc=1) vs 橋 (acc=2) read identically but differ in accent")
     func pitchMinimalPair() throws {
         let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
-        let g2p = try #require(OpenJTalkG2P(dictionaryDirectory: dir))
+        let g2p = try #require(OpenJTalkKokoroG2P(dictionaryDirectory: dir))
 
         let hashi1 = g2p.analyze("箸")
         let hashi2 = g2p.analyze("橋")
@@ -114,7 +114,7 @@ struct OpenJTalkIntegrationTests {
     @Test("readings fixed vs Phase 1: 私→ワタシ, contextual particle は→ワ, counters")
     func readingsFixed() throws {
         let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
-        let g2p = try #require(OpenJTalkG2P(dictionaryDirectory: dir))
+        let g2p = try #require(OpenJTalkKokoroG2P(dictionaryDirectory: dir))
 
         let words = g2p.analyze("私は学生です")
         #expect(words.first(where: { $0.surface == "私" })?.pron == "ワタシ")
@@ -129,7 +129,7 @@ struct OpenJTalkIntegrationTests {
     @Test("hard contract: phonemeString == Σ(phonemes + whitespace), in order")
     func phonemeStringInvariant() throws {
         let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
-        let g2p = try #require(OpenJTalkG2P(dictionaryDirectory: dir))
+        let g2p = try #require(OpenJTalkKokoroG2P(dictionaryDirectory: dir))
 
         for text in ["箸を持つ", "私は学生です", "東京。", "100円です"] {
             let (phonemeString, tokens) = g2p.phonemize(text: text)
@@ -145,7 +145,7 @@ struct OpenJTalkIntegrationTests {
     @Test("hard contract: every phoneme character is in the Kokoro vocab")
     func everyCharInVocab() throws {
         let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
-        let g2p = try #require(OpenJTalkG2P(dictionaryDirectory: dir))
+        let g2p = try #require(OpenJTalkKokoroG2P(dictionaryDirectory: dir))
         // The whitespace + a small set of in-vocab punctuation are also allowed.
         let extra = Set(" .,!?:;()\u{201C}\u{201D}…—")
         for text in ["箸を持つ", "私は学生です", "東京", "100円", "3日", "こんにちは"] {
@@ -160,10 +160,10 @@ struct OpenJTalkIntegrationTests {
     func downstepGated() throws {
         let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
 
-        let clean = try #require(OpenJTalkG2P(dictionaryDirectory: dir, injectDownstep: false))
+        let clean = try #require(OpenJTalkKokoroG2P(dictionaryDirectory: dir, injectDownstep: false))
         #expect(!clean.phonemize(text: "箸").0.contains("↓"))
 
-        let marked = try #require(OpenJTalkG2P(dictionaryDirectory: dir, injectDownstep: true))
+        let marked = try #require(OpenJTalkKokoroG2P(dictionaryDirectory: dir, injectDownstep: true))
         // 箸 acc=1 → nucleus on mora 1 → a single ↓ in the stream.
         #expect(marked.phonemize(text: "箸").0.contains("↓"))
     }
@@ -262,6 +262,120 @@ struct FuriganaReadingTests {
         let joined = reader.furiganaWords(for: "壺が一つ").map(\.surface).joined()
         #expect(joined == "壺が一つ")
     }
+
+    @Test("orthographic-kana broadening: づ survives (not ず), は survives a contracted わ")
+    func orthographicKanaThroughFurigana() throws {
+        let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
+        let reader = try #require(OpenJTalkReader(dictionaryDirectory: dir))
+
+        // Measured pre-fix: pron=ち’かずく / read=ちかづく, reconciled (buggy) → ちかずく.
+        // Fixed reconciliation must spell the yotsugana づ, matching `read`.
+        let chikazuku = try #require(reader.furiganaReading(for: "近づく"))
+        #expect(chikazuku == "ちかづく")
+        #expect(chikazuku.contains("かづ"))
+        #expect(!chikazuku.contains("かず"))
+
+        let kizuku = try #require(reader.furiganaReading(for: "気づく"))
+        #expect(kizuku == "きづく")
+        #expect(kizuku.contains("きづ"))
+        #expect(!kizuku.contains("きず"))
+
+        let tsuzukeru = try #require(reader.furiganaReading(for: "続ける"))
+        #expect(tsuzukeru == "つづける")
+        #expect(tsuzukeru.contains("つづ"))
+        #expect(!tsuzukeru.contains("つず"))
+
+        // 今晩は: contracted topic-marker は, spoken わ. Fixed reconciliation spells は.
+        let konbanwa = try #require(reader.furiganaReading(for: "今晩は"))
+        #expect(konbanwa == "こんばんは")
+        #expect(konbanwa.contains("んは"))
+        #expect(!konbanwa.contains("んわ"))
+    }
+
+    @Test("split volitional via furiganaWords: 行こう reads う, never a bare ー")
+    func volitionalNoChoonpu() throws {
+        let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
+        let reader = try #require(OpenJTalkReader(dictionaryDirectory: dir))
+
+        // furiganaWords is the per-word path where OpenJTalk splits 行こう into 行こ + う and
+        // the auxiliary's own `pron` is a bare chōonpu with nothing before it to attach to —
+        // this is where the pre-fix defect actually lived (furiganaReading on the whole string
+        // already reconciled fine, because it concatenates pron/read before reconciling).
+        let words = reader.furiganaWords(for: "行こう")
+        let joined = words.map(\.reading).joined()
+        #expect(joined == "いこう")
+        #expect(joined.contains("う"))
+        #expect(!joined.contains("ー"))
+    }
+
+    @Test("regression guard: no furiganaWords reading contains a bare chōonpu")
+    func noChoonpuLeaksIntoFurigana() throws {
+        let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
+        let reader = try #require(OpenJTalkReader(dictionaryDirectory: dir))
+
+        // A spread of hiragana-only-expected inputs: long-vowel nouns, the volitional auxiliary,
+        // and a plain sentence. None of their reconciled readings may contain ー.
+        let lines = ["行こう", "言おう", "続けよう", "方", "先生", "東京", "私は学生です"]
+        for line in lines {
+            for word in reader.furiganaWords(for: line) {
+                #expect(!word.reading.contains("ー"), "ー leaked into furigana for \(word.surface) in \"\(line)\"")
+            }
+        }
+    }
+
+    @Test("synthesis path (pron) is untouched by the furigana fix — hiraganaReading pins")
+    func synthesisPathUnchanged() throws {
+        let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
+        let reader = try #require(OpenJTalkReader(dictionaryDirectory: dir))
+
+        // Conductor-measured pre-fix pron values, pinned exactly. `hiraganaReading` reads the
+        // `pron` keypath directly (this unit never touches it) and is expected to still carry
+        // the phonetic spelling — including the accent-nucleus marker ’ (U+2019) on 近づく,
+        // which a pin of "ちかずく" would silently fail to catch.
+        let cases: [(String, String)] = [
+            ("近づく", "ち\u{2019}かずく"),
+            ("気づく", "きずく"),
+            ("続ける", "つずける"),
+            ("今晩は", "こんばんわ"),
+            ("基づく", "もとずく"),
+            ("相づち", "あいずち")
+        ]
+        for (surface, pron) in cases {
+            #expect(reader.hiraganaReading(for: surface) == pron)
+        }
+    }
+
+    @Test("both paths agree on 続: isolated-surface and in-line furiganaWords both spell づ")
+    func bothPathsAgreeOnTsuzuku() throws {
+        let dir = try #require(dictionaryDirectory(), "set OJT_DICT_DIR to run")
+        let reader = try #require(OpenJTalkReader(dictionaryDirectory: dir))
+
+        // The two extraction paths do NOT have to agree, and asserting that they do was
+        // wrong. Measured: `furiganaReading("続い")` on the bare surface gives そくい, because
+        // an isolated re-analysis reads 続 as the standalone そく; the same surface inside a
+        // sentence is analysed as ツズイ/ツヅイ. That is the same isolated-versus-in-context
+        // divergence that makes 静か re-tokenize to しずかか on its own, and it is upstream of
+        // anything this fix touches.
+        //
+        // What the fix owes is narrower and is what is asserted here: WHEREVER the reader
+        // produces a reading for this surface, the yotsugana is spelled づ and never ず.
+        func inLineReading(_ line: String, surface: String) -> String? {
+            reader.furiganaWords(for: line).first { $0.surface == surface }?.reading
+        }
+
+        // In context, which is the path the reader renders from.
+        let inLineI = try #require(inLineReading("雨が続いた", surface: "続い"))
+        #expect(inLineI.contains("づ"))
+        #expect(!inLineI.contains("ず"))
+        // And the isolated path is a different word, recorded so nobody re-asserts equality.
+        #expect(reader.furiganaReading(for: "続い") == "そくい")
+
+        let isolatedKe = try #require(reader.furiganaReading(for: "続け"))
+        let inLineKe = try #require(inLineReading("作業を続けた", surface: "続け"))
+        #expect(isolatedKe == inLineKe)
+        #expect(isolatedKe.contains("づ"))
+        #expect(!isolatedKe.contains("ず"))
+    }
 }
 
 // MARK: - Reconcile helper (pure, no dictionary)
@@ -293,5 +407,54 @@ struct FuriganaReconcilePureTests {
     func moraMismatchFallback() {
         // Differing gemination ⇒ unequal mora count after small-kana normalisation ⇒ keep pron.
         #expect(OpenJTalkReader.reconcileFurigana(pron: "がっこう", read: "がこう") == "がっこう")
+    }
+
+    @Test("yotsugana: pron's ず/じ → read's etymological づ/ぢ")
+    func yotsugana() {
+        // 近づい (measured): pron チカズイ / read チカヅイ → づ wins.
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "ちかずい", read: "ちかづい") == "ちかづい")
+        // 近づく (measured): pron チカズク / read チカヅク → づ wins.
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "ちかずく", read: "ちかづく") == "ちかづく")
+        // 気づく (measured): pron キズク / read キヅク → づ wins.
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "きずく", read: "きづく") == "きづく")
+        // じ/ぢ mirrors ず/づ (same yotsugana merger, opposite consonant voicing source):
+        // 鼻血 pron ハナジ / read ハナヂ → ぢ wins.
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "はなじ", read: "はなぢ") == "はなぢ")
+    }
+
+    @Test("bare chōonpu mora: pron's detached ー → read's spelled-out vowel, unconditioned")
+    func detachedChoonpu() {
+        // The split volitional (行こ + う): the auxiliary's pron is a lone ー with nothing
+        // before it in THIS aligned pair to carry a previous-vowel condition — read always wins.
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "いこー", read: "いこう") == "いこう")
+        // Against a different read vowel column (い, not う) — proves the rule is "ー vs any
+        // kana", not just a rename of the お/う case:
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "せんせー", read: "せんせい") == "せんせい")
+    }
+
+    @Test("contracted particles: pron's spoken わ/え/お → read's written は/へ/を")
+    func contractedParticles() {
+        // 今晩は (measured): pron コンバンワ / read コンバンハ → は wins.
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "こんばんわ", read: "こんばんは") == "こんばんは")
+        // へ as a directional particle is spoken え:
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "わたしえ", read: "わたしへ") == "わたしへ")
+        // を is spoken お:
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "みずお", read: "みずを") == "みずを")
+    }
+
+    @Test("broadened rule does not eat genuine sound-changes or already-correct reconciliations")
+    func soundChangesStillPreserved() {
+        // 八百: gemination, not an alternation pair — pron wins (covered by soundChange() above
+        // too; re-asserted here alongside its siblings so a regression in any one is isolated).
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "はっぴゃく", read: "はちひゃく") == "はっぴゃく")
+        // 決して: pron carries the accent marker (けっし’て) but pron/read agree once stripped —
+        // no alternation fires, marker-stripping alone produces the answer.
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "けっし’て", read: "けっして") == "けっして")
+        // ご馳走 / 馳走: accent marker + the pre-existing お/う long-vowel case, still both correct
+        // under the broadened predicate (its case list is additive, not a replacement).
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "ごち’そお", read: "ごちそう") == "ごちそう")
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "ち’そお", read: "ちそう") == "ちそう")
+        // 東京: the pre-existing お-column long-vowel case, unaffected by the new pairs.
+        #expect(OpenJTalkReader.reconcileFurigana(pron: "とおきょお", read: "とうきょう") == "とうきょう")
     }
 }
